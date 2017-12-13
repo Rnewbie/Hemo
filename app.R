@@ -7,6 +7,9 @@
 #    http://shiny.rstudio.com/
 #
 
+source("function.R")
+
+
 library(shiny)
 library(shinythemes)
 library(protr)
@@ -18,13 +21,16 @@ library(seqinr)
 library(caret)
 library(randomForest)
 
+df <- read.csv("alpha_data_final.csv")
+fit <- J48(Affinity~., data = df)
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(title="HOBBIT: A webserver for prediction the oxygen affinity of human hemoglobin", theme=shinytheme("cerulean"),
                 navbarPage(strong("FPOP"),
                            tabPanel("Submit Job", titlePanel("HOBBIT: A webserver for prediction the oxygen affinity of human hemoglobin"),
                                     sidebarLayout(
                                       wellPanel(
-                                        radioButtons("Selection", "Select the Sequence", list("Alpha", "Beta")),
+                                        radioButtons(inputId = "Selection",label = "Select the Sequence", choices = c("Alpha", "Beta")),
                                         tags$label("Enter your input sequence(s) in FASTA format",style="float: none; width: 100%;"),
                                         actionLink("addlink", "Insert example data"),
                                         tags$textarea(id="Sequence", rows=5, cols=100, style="float: none; width:100%;", ""),
@@ -56,16 +62,26 @@ ui <- fluidPage(title="HOBBIT: A webserver for prediction the oxygen affinity of
 server <- function(input, output, session) {
   observe({
     FASTADATA <- ''
-    fastaexample <- '>wild_type(Normal)
-    VLDAWKYARLKTPHFDSHAVKGHGKADANDDMPLSSDLHAHKRDPVNAHPDASTVSKYR
-    >Hb_Lyon_Bron(Decrease)
-    ALDAWKYARLKTPHFDSHAVKGHGKADANDDMPLSSDLHAHKRDPVNAHPDASTVSKYR
-    >Hb_Diamant(Increase)
-    VLDAWKYARLKTPHFDSHAVKGHGKADANDDMPLSSDLHAHKRDPVNAHLDASTVSKYR'
+#    fastaexample <- '>wild_type(Normal)
+#    VLDAWKYARLKTPHFDSHAVKGHGKADANDDMPLSSDLHAHKRDPVNAHPDASTVSKYR
+#    >Hb_Lyon_Bron(Decrease)
+#    ALDAWKYARLKTPHFDSHAVKGHGKADANDDMPLSSDLHAHKRDPVNAHPDASTVSKYR
+#    >Hb_Diamant(Increase)
+#    VLDAWKYARLKTPHFDSHAVKGHGKADANDDMPLSSDLHAHKRDPVNAHLDASTVSKYR'
+    fastaexample_alpha <- '>HBA_Human Hemoglobin subunit alpha
+    MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR'
+    fastaexample_beta <- '>HBA_Human Hemoglobin subunit beta
+    MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH
+    '
     if(input$addlink>0) {
       isolate({
-        FASTADATA <- fastaexample
+        if (input$Selection == "Alpha") {
+          FASTADATA <- fastaexample_alpha
+          updateTextInput(session, inputId = "Sequence", value = FASTADATA)
+        } else if (input$Selection == "Beta") {
+        FASTADATA <- fastaexample_beta
         updateTextInput(session, inputId = "Sequence", value = FASTADATA)
+        }
       })
     }
   })
@@ -95,9 +111,10 @@ server <- function(input, output, session) {
         x <- inTextbox
         write.fasta(sequence = x, names = names(x),
                     nbchar = 80, file.out = "text.fasta")
-        x <- readFASTA("text.fasta")
-        x <- x[(sapply(x, protcheck))]
-        DPC <- t(sapply(x, bossrequestedDes))
+       # x <- readFASTA("text.fasta")
+      #  x <- x[(sapply(x, protcheck))]
+       # DPC <- t(sapply(x, bossrequestedDes))
+        DPC <- alpha_z3("text.fasta")
         test <- data.frame(DPC)
         Prediction <- predict(fit, test)
         Prediction <- as.data.frame(Prediction)
@@ -107,9 +124,10 @@ server <- function(input, output, session) {
         print(results)
       } 
       else {     
-        x <- readFASTA(inFile$datapath)
-        x <- x[(sapply(x, protcheck))]
-        DPC <- t(sapply(x, bossrequestedDes))
+        #x <- readFASTA(inFile$datapath)
+        #x <- x[(sapply(x, protcheck))]
+        #DPC <- t(sapply(x, bossrequestedDes))
+        DPC <- alpha_z3(inFile$datapath)
         test <- data.frame(DPC)
         Prediction <- predict(fit, test)
         Prediction <- as.data.frame(Prediction)
